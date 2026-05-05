@@ -3,15 +3,17 @@ let faceMesh;
 let faces = [];
 let options = { maxFaces: 1, refineLandmarks: true, flipHorizontal: false };
 
-// 1. 嘴唇原有的兩組節點
+// 1. 嘴唇節點
 let lipGroup1 = [409, 270, 269, 267, 0, 37, 39, 40, 185, 61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
 let lipGroup2 = [76, 77, 90, 180, 85, 16, 315, 404, 320, 307, 306, 408, 304, 303, 302, 11, 72, 73, 74, 184];
 
-// 2. 右眼區域節點 (FaceMesh 標定)
-// 外圍編號 (以 247 為起點的邏輯序列)
+// 2. 右眼區域節點
 let rightEyeOuter = [247, 30, 29, 27, 28, 56, 190, 243, 112, 26, 22, 23, 24, 110, 25];
-// 內圈編號 (以 246 為起點的邏輯序列)
 let rightEyeInner = [246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7];
+
+// 3. 左眼區域節點 (新增)
+let leftEyeOuter = [467, 260, 259, 257, 258, 286, 414, 463, 341, 256, 252, 253, 254, 339, 255];
+let leftEyeInner = [466, 390, 388, 387, 386, 385, 384, 398, 362, 382, 381, 380, 374, 373, 390, 389];
 
 function preload() {
   faceMesh = ml5.faceMesh(options);
@@ -53,31 +55,25 @@ function draw() {
   if (faces.length > 0) {
     let face = faces[0];
     
-    stroke(255, 0, 0); // 線條顏色：紅色
-    strokeWeight(1);   // 線條粗細：1
+    stroke(255, 0, 0); // 線條紅色
+    strokeWeight(1);   // 線條粗細 1
     noFill();
 
-    // 繪製嘴唇部分 (保留原有功能)
+    // 繪製嘴唇
     drawLines(face, lipGroup1, imgW, imgH, false);
     drawLines(face, lipGroup2, imgW, imgH, false);
 
-    // 繪製右眼外圍 (編號 247 相關序列，閉合迴圈)
+    // 繪製右眼 (外圍與內圈)
     drawLines(face, rightEyeOuter, imgW, imgH, true);
-    
-    // 繪製右眼內圈 (編號 246 相關序列，閉合迴圈)
     drawLines(face, rightEyeInner, imgW, imgH, true);
+
+    // 繪製左眼 (外圍與內圈) - 新增
+    drawLines(face, leftEyeOuter, imgW, imgH, true);
+    drawLines(face, leftEyeInner, imgW, imgH, true);
   }
   pop();
 }
 
-/**
- * 繪圖邏輯封裝
- * @param {Object} faceData 辨識到的臉部資料
- * @param {Array} indices 節點編號陣列
- * @param {Number} w 顯示影像寬度
- * @param {Number} h 顯示影像高度
- * @param {Boolean} isClosed 是否封閉成圈
- */
 function drawLines(faceData, indices, w, h, isClosed) {
   beginShape();
   for (let i = 0; i < indices.length; i++) {
@@ -89,7 +85,7 @@ function drawLines(faceData, indices, w, h, isClosed) {
     }
   }
   if (isClosed) {
-    endShape(CLOSE); // 封閉迴圈
+    endShape(CLOSE);
   } else {
     endShape();
   }
