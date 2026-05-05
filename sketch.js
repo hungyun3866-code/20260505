@@ -1,12 +1,17 @@
 let capture;
 let faceMesh;
 let faces = [];
-let options = { maxFaces: 1, refineLandmarks: false, flipHorizontal: false };
+let options = { maxFaces: 1, refineLandmarks: true, flipHorizontal: false };
 
-// 第一組節點 (原本的輪廓)
-let group1 = [409, 270, 269, 267, 0, 37, 39, 40, 185, 61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
-// 第二組節點 (新增的序列)
-let group2 = [76, 77, 90, 180, 85, 16, 315, 404, 320, 307, 306, 408, 304, 303, 302, 11, 72, 73, 74, 184];
+// 1. 嘴唇原有的兩組節點
+let lipGroup1 = [409, 270, 269, 267, 0, 37, 39, 40, 185, 61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
+let lipGroup2 = [76, 77, 90, 180, 85, 16, 315, 404, 320, 307, 306, 408, 304, 303, 302, 11, 72, 73, 74, 184];
+
+// 2. 右眼區域節點 (FaceMesh 標定)
+// 外圍編號 (以 247 為起點的邏輯序列)
+let rightEyeOuter = [247, 30, 29, 27, 28, 56, 190, 243, 112, 26, 22, 23, 24, 110, 25];
+// 內圈編號 (以 246 為起點的邏輯序列)
+let rightEyeInner = [246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7];
 
 function preload() {
   faceMesh = ml5.faceMesh(options);
@@ -28,14 +33,13 @@ function gotFaces(results) {
 function draw() {
   background('#e7c6ff');
 
-  // 顯示文字
+  // 文字顯示
   fill(0);
   noStroke();
   textSize(32);
   textAlign(CENTER, CENTER);
   text("教科414730860", width / 2, 50);
 
-  // 影像置中與鏡像
   let imgW = width * 0.5;
   let imgH = height * 0.5;
   let x = (width - imgW) / 2;
@@ -49,21 +53,32 @@ function draw() {
   if (faces.length > 0) {
     let face = faces[0];
     
-    stroke(255, 0, 0); // 紅色線條
-    strokeWeight(1);   // 線條粗細改為 1
+    stroke(255, 0, 0); // 線條顏色：紅色
+    strokeWeight(1);   // 線條粗細：1
     noFill();
 
-    // 繪製第一組線條
-    drawLines(face, group1, imgW, imgH);
+    // 繪製嘴唇部分 (保留原有功能)
+    drawLines(face, lipGroup1, imgW, imgH, false);
+    drawLines(face, lipGroup2, imgW, imgH, false);
+
+    // 繪製右眼外圍 (編號 247 相關序列，閉合迴圈)
+    drawLines(face, rightEyeOuter, imgW, imgH, true);
     
-    // 繪製第二組線條
-    drawLines(face, group2, imgW, imgH);
+    // 繪製右眼內圈 (編號 246 相關序列，閉合迴圈)
+    drawLines(face, rightEyeInner, imgW, imgH, true);
   }
   pop();
 }
 
-// 封裝繪圖邏輯以簡化代碼
-function drawLines(faceData, indices, w, h) {
+/**
+ * 繪圖邏輯封裝
+ * @param {Object} faceData 辨識到的臉部資料
+ * @param {Array} indices 節點編號陣列
+ * @param {Number} w 顯示影像寬度
+ * @param {Number} h 顯示影像高度
+ * @param {Boolean} isClosed 是否封閉成圈
+ */
+function drawLines(faceData, indices, w, h, isClosed) {
   beginShape();
   for (let i = 0; i < indices.length; i++) {
     let pt = faceData.keypoints[indices[i]];
@@ -73,7 +88,11 @@ function drawLines(faceData, indices, w, h) {
       vertex(px, py);
     }
   }
-  endShape();
+  if (isClosed) {
+    endShape(CLOSE); // 封閉迴圈
+  } else {
+    endShape();
+  }
 }
 
 function windowResized() {
