@@ -3,17 +3,17 @@ let faceMesh;
 let faces = [];
 let options = { maxFaces: 1, refineLandmarks: true, flipHorizontal: false };
 
-// --- 節點編號定義 (维持原本設定) ---
+// --- 節點編號定義 (維持原本設定) ---
 // 1. 嘴唇 (紅線)
-let lipTopIndices = [267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 146, 61, 185, 40, 39, 37, 0];
-let lipBottomIndices = [184, 74, 73, 72, 11, 302, 303, 304, 408, 306, 307, 320, 404, 315, 16, 85, 180, 90, 77, 76];
+let lipTop = [267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 146, 61, 185, 40, 39, 37, 0];
+let lipBottom = [184, 74, 73, 72, 11, 302, 303, 304, 408, 306, 307, 320, 404, 315, 16, 85, 180, 90, 77, 76];
 
 // 2. 眼睛 (黑眼圈效果，深灰)
-let eyeOuterR_Indices = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
-let eyeOuterL_Indices = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
+let eyeR_Outer = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
+let eyeL_Outer = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
 
 // 3. 臉部最外層輪廓 (裁切用)
-let faceOvalIndices = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
+let faceOval = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
 
 function preload() {
   faceMesh = ml5.faceMesh(options);
@@ -38,7 +38,7 @@ function draw() {
   // 基礎背景色
   background(220);
 
-  // 文字置中於上方
+  // 文字顯示：教科414730860
   fill(0);
   noStroke();
   textSize(32);
@@ -51,17 +51,25 @@ function draw() {
   let x = (width - imgW) / 2;
   let y = (height - imgH) / 2;
 
-  // 如果偵測到臉，則繪製影像與線條
+  // --- 第一層：底層攝影機影像 (置中、鏡像) ---
+  // 這是完整的背景
+  push();
+  translate(x + imgW, y); // 移動到右側，準備鏡像
+  scale(-1, 1); // 水平翻轉
+  image(capture, 0, 0, imgW, imgH);
+  pop();
+
+  // 如果偵測到臉，則繪製遮罩與線條
   if (faces.length > 0) {
     let face = faces[0];
 
-    // --- 第一層：核心裁切與鏤空技巧 (只在臉部覆蓋顏色) ---
+    // --- 第二層：核心裁切步驟：只在臉部覆蓋顏色 ---
+    // 我們利用 beginContour 實作「鏤空挖洞」
     push();
     fill('#fdf0d5'); // 您要求的指定顏色
     noStroke();
     
-    // 我們利用 beginContour 實作「鏤空挖洞」
-    // 這個形狀會是一個包住整個影像的反向大矩形，中央依照臉形挖洞
+    // 繪製遮罩形狀
     beginShape();
     // 外部矩形 (反向绕行，逆時針)
     vertex(x, y);
@@ -70,10 +78,10 @@ function draw() {
     vertex(x + imgW, y);
     
     // 內部鏤空 (正向绕行，順時針)
-    // 我們必須計算鏡像後的座標，因為我們手動在底層處理了鏡像
+    // **關鍵：我們必須手動計算鏡像後的座標，才能對齊底下的影像**
     beginContour();
-    for (let i = 0; i < faceOvalIndices.length; i++) {
-      let index = faceOvalIndices[i];
+    for (let i = 0; i < faceOval.length; i++) {
+      let index = faceOval[i];
       let pt = face.keypoints[index];
       if (pt) {
         // 水平鏡像處理：計算鏡像點的 X 座標
@@ -88,17 +96,9 @@ function draw() {
     endShape(CLOSE);
     pop();
 
-    // --- 第二層：繪製完整的攝影機影像 (置中、鏡像) ---
-    // 這一層在鏤空形狀下面，影像會從挖空的地方露出來
-    push();
-    translate(x + imgW, y); // 移動到右側，處理鏡像
-    scale(-1, 1); // 水平翻轉
-    image(capture, 0, 0, imgW, imgH);
-    pop();
-
     // --- 第三層：重新進入鏡像座標系，繪製特徵線條 ---
     push();
-    // 與第二層一致，線條才會貼合臉部
+    // 與第一層一致，線條才會貼合臉部
     translate(x + imgW, y);
     scale(-1, 1);
 
@@ -106,19 +106,20 @@ function draw() {
     stroke(0, 255, 255); // Neon Cyan
     strokeWeight(2);
     noFill();
-    renderLines(face, faceOvalIndices, imgW, imgH, true);
+    renderLines(face, faceOval, imgW, imgH, true);
 
     // 2. 兩眼：深灰色, 粗 15 (黑眼圈效果)
+    // 確保兩隻眼睛都會同時出現深灰粗線
     stroke(50); // Dark Gray
     strokeWeight(15);
-    renderLines(face, eyeOuterR_Indices, imgW, imgH, true);
-    renderLines(face, eyeOuterL_Indices, imgW, imgH, true);
+    renderLines(face, eyeR_Outer, imgW, imgH, true);
+    renderLines(face, eyeL_Outer, imgW, imgH, true);
 
     // 3. 嘴唇 (紅色, 粗 1)
     stroke(255, 0, 0); // Red
     strokeWeight(1);
-    renderLines(face, lipTopIndices, imgW, imgH, false);
-    renderLines(face, lipBottomIndices, imgW, imgH, false);
+    renderLines(face, lipTop, imgW, imgH, false);
+    renderLines(face, lipBottom, imgW, imgH, false);
     pop();
   } else {
     // 沒偵測到臉時，顯示一個空框
@@ -137,11 +138,14 @@ function draw() {
  * @param {Boolean} isClosed 是否封閉線段
  */
 function renderLines(faceData, indices, w, h, isClosed) {
+  let pts = faceData.keypoints;
+  if (!pts) return;
   beginShape();
   for (let i = 0; i < indices.length; i++) {
     let index = indices[i];
-    let keypoint = faceData.keypoints[index];
+    let keypoint = pts[index];
     if (keypoint) {
+      // 將原始偵測座標映射到畫布顯示座標
       let px = map(keypoint.x, 0, capture.width, 0, w);
       let py = map(keypoint.y, 0, capture.height, 0, h);
       vertex(px, py);
